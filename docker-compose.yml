@@ -1,7 +1,7 @@
 # The whole app with one command:   docker compose up --build
 #   web  http://localhost:8080   (React app)
 #   api  http://localhost:8000   (FastAPI; interactive docs at /docs)
-#   db   PostgreSQL, only reachable by the api
+#   db   PostgreSQL on localhost:5432 (user/password/db: hotels), so local dev can use it too
 name: hotel-booking-manager
 
 services:
@@ -11,6 +11,8 @@ services:
       POSTGRES_USER: hotels
       POSTGRES_PASSWORD: hotels
       POSTGRES_DB: hotels
+    ports:
+      - "5432:5432"
     volumes:
       - db-data:/var/lib/postgresql
     healthcheck:
