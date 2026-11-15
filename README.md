@@ -133,9 +133,10 @@ Both suites run on every push in GitHub Actions (`.github/workflows/ci.yml`).
 
 ## Design decisions
 
-- **Availability is checked night by night.** Two short stays on different nights both overlap a
-  long stay but only ever use one room at a time, so the check takes the busiest night, not a
-  simple count of overlapping bookings.
+- **Availability uses the busiest night.** Two short stays on different nights both overlap a long
+  stay but only ever use one room at a time, so the check finds the busiest night (a sweep over
+  check-in/check-out events) rather than counting overlapping bookings. Its cost depends on the
+  number of bookings, not the length of the range, and ranges are capped at 60 nights.
 - **The price is stored on the booking.** Changing a rate plan later doesn't change what existing
   guests pay.
 - **Rules live on the server; the UI repeats them for speed.** Zod validates forms instantly, but

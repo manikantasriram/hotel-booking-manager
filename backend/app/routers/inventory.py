@@ -16,7 +16,7 @@ from app.schemas import (
     RoomTypeOut,
     RoomTypeUpdate,
 )
-from app.services import booked_rooms
+from app.services import MAX_NIGHTS, booked_rooms
 
 router = APIRouter(prefix="/api", tags=["room types & rate plans"])
 
@@ -76,6 +76,8 @@ def availability(
 ) -> Availability:
     if check_out <= check_in:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Check-out must be after check-in")
+    if (check_out - check_in).days > MAX_NIGHTS:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"Check at most {MAX_NIGHTS} nights at a time")
     rt = _room_type(db, room_type_id)
     booked = booked_rooms(db, room_type_id, check_in, check_out)
     return Availability(

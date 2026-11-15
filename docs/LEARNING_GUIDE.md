@@ -235,8 +235,11 @@ history of changes to the table structure (**migrations**).
   one per row (avoids the "N+1 query" problem).
 
 **The availability rule** (`app/services.py`): two stays overlap when
-`existing.check_in < new.check_out AND existing.check_out > new.check_in`. Then we count night by
-night and take the busiest night.
+`existing.check_in < new.check_out AND existing.check_out > new.check_in`. Then we find the busiest
+night with a "sweep": every overlapping stay is +1 room on its first night and -1 on its check-out
+day; sort those events by date and keep a running total. The highest total is the busiest night.
+The work depends on how many bookings overlap, not on how long the date range is, and the API
+refuses ranges over 60 nights, so nobody can make the server count millions of nights.
 
 **The overbooking guard** (`create_booking`): `select(RoomType)...with_for_update()` runs
 `SELECT ... FOR UPDATE`, which locks that room type's row until the booking is saved. A second

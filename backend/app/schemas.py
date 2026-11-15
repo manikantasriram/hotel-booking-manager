@@ -13,6 +13,7 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, PlainSerializer, StringConstraints, model_validator
 
 from app.models import BookingStatus, Role
+from app.services import MAX_NIGHTS
 
 # Money is stored exactly (Decimal) but sent to the browser as a plain JSON number.
 Money = Annotated[Decimal, PlainSerializer(float, return_type=float)]
@@ -124,8 +125,8 @@ class BookingIn(BaseModel):
     def check_dates(self) -> "BookingIn":
         if self.check_out <= self.check_in:
             raise ValueError("Check-out must be after check-in")
-        if (self.check_out - self.check_in).days > 60:
-            raise ValueError("A booking can be at most 60 nights")
+        if (self.check_out - self.check_in).days > MAX_NIGHTS:
+            raise ValueError(f"A booking can be at most {MAX_NIGHTS} nights")
         return self
 
 

@@ -81,3 +81,23 @@ def test_filters(client, staff, room):
     assert len(client.get("/api/bookings", params={"status": "confirmed"}, headers=staff).json()) == 1
     assert len(client.get("/api/bookings", params={"status": "cancelled"}, headers=staff).json()) == 0
     assert len(client.get("/api/bookings", params={"hotel_id": room.hotel_id}, headers=staff).json()) == 1
+
+
+def test_availability_range_is_capped(client, staff, room):
+    r = client.get(
+        f"/api/room-types/{room.id}/availability",
+        params={"check_in": "0001-01-01", "check_out": "9999-12-31"},
+        headers=staff,
+    )
+    assert r.status_code == 422
+
+
+def test_busiest_night_ignores_stays_outside_the_range(client, staff, room, db):
+    # The only room is booked 10th-12th. Asking about the 12th-14th must still show it free.
+    assert book(client, staff, room, check_in=D, nights=2).status_code == 201
+    r = client.get(
+        f"/api/room-types/{room.id}/availability",
+        params={"check_in": str(D + timedelta(days=2)), "check_out": str(D + timedelta(days=4))},
+        headers=staff,
+    )
+    assert r.json()["available"] == 1
