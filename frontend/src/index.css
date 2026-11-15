@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+/* Design tokens: one place for the brand colours, used as Tailwind classes (bg-brand, text-ink...) */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --color-brand: #2f5bff;
+  --color-brand-dark: #2147d9;
+  --color-brand-soft: #eef2ff;
+  --color-ink: #0e1a33;
+  --color-mute: #55627d;
+  --color-line: #e2e8f0;
+  --color-canvas: #f6f8fb;
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-canvas text-ink antialiased;
+}
+
+/* Visible keyboard focus everywhere */
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
