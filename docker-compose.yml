@@ -1,0 +1,52 @@
+# The whole app with one command:   docker compose up --build
+#   web  http://localhost:8080   (React app)
+#   api  http://localhost:8000   (FastAPI; interactive docs at /docs)
+#   db   PostgreSQL, only reachable by the api
+name: hotel-booking-manager
+
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: hotels
+      POSTGRES_PASSWORD: hotels
+      POSTGRES_DB: hotels
+    volumes:
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hotels -d hotels"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://hotels:hotels@db:5432/hotels
+      JWT_SECRET: local-docker-secret-not-for-production-0000000000
+      CORS_ORIGINS: http://localhost:8080,http://localhost:5173
+      SEED_DEMO: "true"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:8000
+    ports:
+      - "8080:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  db-data:

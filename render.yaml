@@ -1,0 +1,19 @@
+# Render "Blueprint": describes the API service so Render can create it from this repo.
+# The database lives on Neon; paste its connection string into DATABASE_URL when asked.
+services:
+  - type: web
+    name: hotel-booking-manager-api
+    runtime: docker
+    rootDir: backend
+    plan: free
+    region: singapore
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        sync: false # entered by hand in the Render dashboard (it contains the DB password)
+      - key: JWT_SECRET
+        generateValue: true # Render creates a long random secret
+      - key: CORS_ORIGINS
+        sync: false # the Vercel address of the front end
+      - key: SEED_DEMO
+        value: "true"
