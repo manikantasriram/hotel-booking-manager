@@ -1,148 +1,144 @@
 # Hotel Rate & Booking Manager
 
-A full stack app for running a small hotel group: manage hotels, room types and rate plans, check
-availability, and take and cancel bookings, with separate **admin** and **staff** roles.
+A full stack web app for running a small hotel group: manage hotels, room types and prices,
+check which rooms are free, and take or cancel bookings. Admins and staff see different controls.
 
-**Stack:** React 19 · TypeScript · TanStack Query · TanStack Table · Tailwind CSS · FastAPI · PostgreSQL · SQLAlchemy · Alembic · JWT · Docker · GitHub Actions
+**Live demo: [hotel-booking-manager.vercel.app](https://hotel-booking-manager.vercel.app)**
+· API docs: [hotel-booking-manager-api-u82i.onrender.com/docs](https://hotel-booking-manager-api-u82i.onrender.com/docs)
 
-<!-- Live demo links go here once deployed (Vercel front end + Render API). -->
+> The API runs on a free plan that sleeps when nobody is using it. The first visit after a quiet
+> spell can take up to a minute while it wakes up; after that it's fast.
+
+| Front end | Back end | Database | Tooling |
+| --- | --- | --- | --- |
+| React 19, TypeScript, TanStack Query, TanStack Table, React Router, Tailwind CSS, Zod | Python, FastAPI, Pydantic, JWT (PyJWT), Argon2 | PostgreSQL, SQLAlchemy, Alembic | Docker Compose, pytest, Vitest, Testing Library |
 
 ## Try it
 
-Sign in with either demo account (the login page has one-click buttons for both):
+Open the [live demo](https://hotel-booking-manager.vercel.app) and use a one-click demo account:
 
-| Role  | Email            | Password          | Can do                                         |
-| ----- | ---------------- | ----------------- | ---------------------------------------------- |
-| Admin | `admin@demo.dev` | `admin-demo-2026` | everything, including hotels, rooms and prices |
-| Staff | `staff@demo.dev` | `staff-demo-2026` | view everything; create and cancel bookings    |
+| Role | Email | Password | What they can do |
+| --- | --- | --- | --- |
+| Admin | `admin@demo.dev` | `admin-demo-2026` | Everything: add and edit hotels, room types and prices |
+| Staff | `staff@demo.dev` | `staff-demo-2026` | See everything; create and cancel bookings |
 
-## Features
+## What it does
 
-- **Dashboard:** occupancy tonight, today's arrivals, upcoming bookings and revenue for the next 30 days.
-- **Sortable, filterable data grids:** sort any column, search across rows, and filter bookings by hotel and status.
-- **Bookings with real availability:** the server checks every night of the stay against the rooms
-  already booked, enforces room capacity, and prices the stay from the chosen rate plan.
-- **No overbooking, even under load:** creating a booking locks the room type's row
-  (`SELECT … FOR UPDATE`), so two people booking the last room at the same moment can't both win.
-  Tested: 10 simultaneous requests for one room → exactly 1 booking, 9 "sold out" responses.
-- **Optimistic updates:** cancelling a booking updates the table instantly and rolls back if the
-  server refuses.
-- **JWT auth with role-based access:** Argon2-hashed passwords, signed tokens, and per-endpoint role
-  checks (admins manage inventory; staff handle bookings).
-- **Documented REST API:** interactive OpenAPI docs at `/docs`, generated from the code.
-- **Accessible UI:** labelled form fields, keyboard-friendly dialogs and tables (`aria-sort`), visible focus.
+- **Dashboard** with occupancy tonight, today's arrivals, upcoming bookings and revenue for the next 30 days.
+- **Data grids** you can sort by any column, search, and filter by hotel and status.
+- **Bookings that respect real availability.** The server checks capacity and the busiest night of
+  the stay, and prices the booking from the chosen rate.
+- **No double-booking.** Booking locks the room type in the database while it saves, so two
+  people can't take the last room at the same moment. Tested with 10 simultaneous requests for
+  one room: exactly 1 succeeded.
+- **Instant feedback.** Cancelling updates the table immediately (an optimistic update) and undoes
+  itself if the server says no.
+- **Sign-in with roles.** Passwords are hashed with Argon2; the server issues a signed token (JWT)
+  and checks the role on every request.
+- **Self-documenting API.** Every endpoint is listed and callable at `/docs`.
+- **Accessible.** Labelled form fields, keyboard-friendly dialogs, sortable table headers announced
+  to screen readers.
 
-## Architecture
+## How it fits together
 
 ```mermaid
 flowchart LR
-  B[Browser<br/>React + TanStack Query] -- JSON over HTTPS<br/>Bearer token --> A[FastAPI<br/>Pydantic validation<br/>role checks]
-  A -- SQLAlchemy --> D[(PostgreSQL)]
-  M[Alembic migrations] --> D
+  B["Browser<br/>React + TanStack Query"] -- "JSON over HTTPS<br/>with a login token" --> A["API<br/>FastAPI"]
+  A -- "SQLAlchemy" --> D[("PostgreSQL")]
 ```
+
+| Part | Hosted on |
+| --- | --- |
+| Front end (static React build) | Vercel |
+| API (Docker container) | Render, Singapore |
+| Database | Neon PostgreSQL, Singapore |
+
+### Project layout
 
 ```
 backend/
   app/
-    main.py          app setup, CORS, routers
-    models.py        database tables (SQLAlchemy ORM)
-    schemas.py       request/response shapes (Pydantic)
-    security.py      password hashing and JWTs
-    deps.py          "who's calling?" and role checks
-    services.py      availability rule (busiest night of a stay)
-    routers/         auth, hotels, room types & rate plans, bookings, stats
-    seed.py          demo data
-  alembic/           database migrations
-  tests/             pytest suite (runs on SQLite in memory)
+    main.py        starts the API, allows the front end to call it
+    models.py      the database tables
+    schemas.py     what each request and response looks like
+    routers/       the endpoints: auth, hotels, room types and rates, bookings, stats
+    services.py    the availability rule (busiest night of a stay)
+    security.py    password hashing and login tokens
+    deps.py        "who is calling?" and role checks
+    seed.py        demo data
+  alembic/         database migrations (history of table changes)
+  tests/           pytest suite
 frontend/
   src/
-    lib/api.ts       fetch wrapper: base URL, token, readable errors
-    lib/queries.ts   all server data via TanStack Query (incl. the optimistic cancel)
-    components/      UI kit, DataTable (TanStack Table), layout
-    pages/           dashboard, hotels, hotel detail, bookings, new booking, login
+    pages/         one file per screen
+    components/    reusable UI: buttons, dialogs, the data table
+    lib/api.ts     every request goes through here
+    lib/queries.ts all server data (TanStack Query), incl. the optimistic cancel
+docs/
+  LEARNING_GUIDE.md   how every part works, in plain language
 ```
 
-### API at a glance
+### API endpoints
 
-| Method | Path                                     | Who   | What                                  |
-| ------ | ---------------------------------------- | ----- | ------------------------------------- |
-| POST   | `/api/auth/login`                        | all   | email + password → JWT                |
-| GET    | `/api/auth/me`                           | staff | the signed-in user                    |
-| GET    | `/api/hotels`, `/api/hotels/{id}`        | staff | hotels; one hotel with rooms and rates |
-| POST/PUT/DELETE | `/api/hotels…`                  | admin | manage hotels                         |
-| POST/PUT/DELETE | `/api/room-types…`, `/api/rate-plans…` | admin | manage rooms and prices         |
-| GET    | `/api/room-types/{id}/availability`      | staff | rooms free for a date range           |
-| GET    | `/api/bookings?hotel_id=&status=&from=&to=` | staff | bookings, filtered                 |
-| POST   | `/api/bookings`                          | staff | create a booking                      |
-| POST   | `/api/bookings/{id}/cancel`              | staff | cancel a booking                      |
-| GET    | `/api/stats`                             | staff | dashboard numbers                     |
+| Method | Path | Who | Does |
+| --- | --- | --- | --- |
+| POST | `/api/auth/login` | anyone | email + password → login token |
+| GET | `/api/auth/me` | signed in | who am I |
+| GET | `/api/hotels` · `/api/hotels/{id}` | signed in | list hotels · one hotel with rooms and rates |
+| POST · PUT · DELETE | `/api/hotels`, `/api/room-types`, `/api/rate-plans` | admin | manage hotels, rooms and prices |
+| GET | `/api/room-types/{id}/availability` | signed in | rooms free for a date range (max 60 nights) |
+| GET | `/api/bookings?hotel_id=&status=` | signed in | bookings, filtered |
+| POST | `/api/bookings` · `/api/bookings/{id}/cancel` | signed in | create · cancel a booking |
+| GET | `/api/stats` | signed in | dashboard numbers |
 
-Full, interactive docs: run the API and open <http://localhost:8000/docs>.
+## Run it on your computer
 
-## Run it locally
-
-### With Docker (one command)
+**Easiest (needs Docker Desktop):**
 
 ```bash
 docker compose up --build
 ```
 
-- App: <http://localhost:8080>
-- API docs: <http://localhost:8000/docs>
+Then open <http://localhost:8080> for the app and <http://localhost:8000/docs> for the API.
+Demo data loads automatically. To start over: `docker compose down -v`.
 
-The API applies migrations and loads demo data on start-up. To start again from scratch:
-`docker compose down -v`.
-
-### Without Docker
-
-Needs Python 3.12+, Node 22+ and a PostgreSQL database (the Docker one is easiest:
-`docker compose up db -d` and set `DATABASE_URL` accordingly, or run Postgres yourself).
+**Without Docker** (Python 3.12+, Node 22+, and a PostgreSQL database; `docker compose up db -d` gives you one):
 
 ```bash
 # API
 cd backend
 python -m venv .venv
-.venv/Scripts/activate            # macOS/Linux: source .venv/bin/activate
+.venv\Scripts\activate          # macOS/Linux: source .venv/bin/activate
 pip install -r requirements-dev.txt
-cp .env.example .env              # then edit DATABASE_URL / JWT_SECRET
+copy .env.example .env          # macOS/Linux: cp .env.example .env
 alembic upgrade head
 python -m app.seed
-uvicorn app.main:app --reload     # http://localhost:8000/docs
+uvicorn app.main:app --reload
 
-# Front end (new terminal)
+# Front end (second terminal)
 cd frontend
 npm install
-npm run dev                       # http://localhost:5173
+npm run dev                     # http://localhost:5173
 ```
 
 ## Tests
 
 ```bash
-cd backend && pytest              # API: auth, roles, pricing, availability, overbooking rules
-cd frontend && npm test           # UI: data table, login flow, formatting
+cd backend && pytest       # 16 tests: sign-in, roles, pricing, availability, double-booking rules
+cd frontend && npm test    # 9 tests: data table, sign-in flow, formatting
 ```
-
-Both suites run on every push in GitHub Actions (`.github/workflows/ci.yml`).
-
-## Deployment
-
-- **Database:** PostgreSQL on [Neon](https://neon.com) (free tier).
-- **API:** Docker web service on [Render](https://render.com) (free tier, see `render.yaml`).
-  Free services sleep when idle, so the first request after a quiet spell can take up to a minute.
-- **Front end:** static build on [Vercel](https://vercel.com) with `VITE_API_URL` pointing at the API.
 
 ## Design decisions
 
-- **Availability uses the busiest night.** Two short stays on different nights both overlap a long
-  stay but only ever use one room at a time, so the check finds the busiest night (a sweep over
-  check-in/check-out events) rather than counting overlapping bookings. Its cost depends on the
-  number of bookings, not the length of the range, and ranges are capped at 60 nights.
-- **The price is stored on the booking.** Changing a rate plan later doesn't change what existing
-  guests pay.
-- **Rules live on the server; the UI repeats them for speed.** Zod validates forms instantly, but
-  the API validates everything again, and the database has CHECK constraints as a final guard.
-- **Deleting is guarded.** A hotel, room type or rate plan with bookings can't be deleted (409).
+- **Busiest night, not overlap count.** Two short stays on different nights both overlap a long
+  stay but never use two rooms at once, so availability is the busiest night in the range. The
+  calculation's cost depends on the number of bookings, not the length of the range.
+- **Price is saved on the booking.** Changing a rate later doesn't change what existing guests pay.
+- **Validate in three places.** The form checks input instantly (Zod), the API checks it again
+  (Pydantic), and the database has rules (CHECK constraints) as the final safety net.
+- **Safe deletes.** A hotel, room type or rate with bookings can't be deleted (the API answers 409).
 
 ---
 
-Built by [Manikanta Sriram](https://manikantasriram.vercel.app).
+Built by [Manikanta Sriram](https://manikantasriram.vercel.app) ·
+[LinkedIn](https://www.linkedin.com/in/manekanttasriram/) · [GitHub](https://github.com/manikantasriram)
