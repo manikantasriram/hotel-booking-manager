@@ -49,7 +49,18 @@ def create_room_type(body: RoomTypeIn, db: DB, _: AdminUser) -> RoomType:
 
 @router.put("/room-types/{room_type_id}", response_model=RoomTypeOut)
 def update_room_type(room_type_id: int, body: RoomTypeUpdate, db: DB, _: AdminUser) -> RoomType:
-    rt = _room_type(db, room_type_id)
+    # Same lock as booking: no new booking can slip in while we check the new room count.
+    rt = db.scalar(select(RoomType).where(RoomType.id == room_type_id).with_for_update())
+    if rt is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Room type not found")
+    if body.total_rooms < rt.total_rooms:
+        # Don't allow fewer rooms than are already booked on any night from today on.
+        busiest = booked_rooms(db, rt.id, date.today(), date.max)
+        if body.total_rooms < busiest:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"{busiest} rooms of this type are already booked on one night, so it needs at least {busiest}",
+            )
     for field, value in body.model_dump().items():
         setattr(rt, field, value)
     db.commit()

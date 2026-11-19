@@ -1,24 +1,44 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 
+from app.config import get_settings
 from app.deps import DB, StaffUser
 from app.models import User
+from app.ratelimit import FailedLoginLimiter
 from app.schemas import Token, UserOut
-from app.security import create_access_token, verify_password
+from app.security import create_access_token, verify_password_or_dummy
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
+login_limiter = FailedLoginLimiter(get_settings().login_attempts_per_minute)
 
-@router.post("/login", response_model=Token)
-def login(db: DB, form: Annotated[OAuth2PasswordRequestForm, Depends()]) -> Token:
+
+@router.post(
+    "/login",
+    response_model=Token,
+    responses={401: {"description": "Wrong email or password"}, 429: {"description": "Too many failed attempts"}},
+)
+def login(request: Request, db: DB, form: Annotated[OAuth2PasswordRequestForm, Depends()]) -> Token:
     """Exchange email + password for a token. (The form field is called `username` by the
     OAuth2 standard; we put the email in it.)"""
+    client = request.client.host if request.client else "unknown"
+    wait = login_limiter.retry_after(client)
+    if wait:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            f"Too many failed sign-in attempts. Try again in {wait} seconds.",
+            headers={"Retry-After": str(wait)},
+        )
+
     user = db.scalar(select(User).where(User.email == form.username.strip().lower()))
-    # Same message whether the email or the password is wrong, so attackers can't tell which.
-    if user is None or not user.is_active or not verify_password(form.password, user.hashed_password):
+    hashed = user.hashed_password if user is not None and user.is_active else None
+    # Same message (and about the same time) whether the email or the password is wrong,
+    # so attackers can't tell which.
+    if not verify_password_or_dummy(form.password, hashed) or user is None:
+        login_limiter.record_failure(client)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Incorrect email or password")
     return Token(access_token=create_access_token(user.id, user.role.value))
 

@@ -6,7 +6,7 @@ schemas describe what goes over the wire. Keeping them separate means a password
 never leak into a response by accident.
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Annotated
 
@@ -127,6 +127,10 @@ class BookingIn(BaseModel):
             raise ValueError("Check-out must be after check-in")
         if (self.check_out - self.check_in).days > MAX_NIGHTS:
             raise ValueError(f"A booking can be at most {MAX_NIGHTS} nights")
+        # One day of slack: the server runs on UTC, so "today" for a user behind UTC can be
+        # the server's yesterday.
+        if self.check_in < date.today() - timedelta(days=1):
+            raise ValueError("Check-in can't be in the past")
         return self
 
 

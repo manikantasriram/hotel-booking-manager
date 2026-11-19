@@ -110,6 +110,9 @@ def create_booking(body: BookingIn, db: DB, user: StaffUser) -> BookingOut:
 
 @router.post("/{booking_id}/cancel", response_model=BookingOut)
 def cancel_booking(booking_id: int, db: DB, _: StaffUser) -> BookingOut:
+    # Lock the booking row so two people cancelling at once can't both "succeed".
+    if db.scalar(select(Booking.id).where(Booking.id == booking_id).with_for_update()) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Booking not found")
     booking = _get(db, booking_id)
     if booking.status == BookingStatus.CANCELLED:
         raise HTTPException(status.HTTP_409_CONFLICT, "This booking is already cancelled")

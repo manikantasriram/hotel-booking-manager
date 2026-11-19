@@ -14,7 +14,12 @@ from pwdlib import PasswordHash
 from app.config import get_settings
 
 ALGORITHM = "HS256"
+# Hashing is deliberately slow, so refuse absurdly long passwords before hashing them.
+MAX_PASSWORD_LENGTH = 128
 _hasher = PasswordHash.recommended()  # Argon2id
+# Hashed once at start-up. Checking against it when the email is unknown makes a wrong email
+# take as long as a wrong password, so response times don't reveal which emails exist.
+_DUMMY_HASH = _hasher.hash("not-a-real-password")
 
 
 def hash_password(password: str) -> str:
@@ -22,6 +27,16 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, hashed: str) -> bool:
+    return _hasher.verify(password, hashed)
+
+
+def verify_password_or_dummy(password: str, hashed: str | None) -> bool:
+    """Like verify_password, but still does the slow hash check when there is no user."""
+    if len(password) > MAX_PASSWORD_LENGTH:
+        return False
+    if hashed is None:
+        _hasher.verify(password, _DUMMY_HASH)
+        return False
     return _hasher.verify(password, hashed)
 
 

@@ -13,7 +13,16 @@ from sqlalchemy.pool import StaticPool
 from app.db import Base, get_db
 from app.main import app
 from app.models import Hotel, RatePlan, Role, RoomType, User
+from app.routers.auth import login_limiter
 from app.security import hash_password
+
+
+@pytest.fixture(autouse=True)
+def _fresh_login_limit() -> Iterator[None]:
+    """Failed sign-ins in one test must not count against the next."""
+    login_limiter.reset()
+    yield
+    login_limiter.reset()
 
 
 @pytest.fixture
