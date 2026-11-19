@@ -29,26 +29,32 @@ class FailedLoginLimiter:
             times.popleft()
         return times
 
-    def retry_after(self, key: str) -> int:
-        """Seconds until this client may try again, or 0 if it may try now."""
+    def acquire(self, key: str) -> int:
+        """Reserve one attempt for this client, counted as a failure until release() is called.
+
+        Checking and counting happen in one locked step, so a burst of parallel requests can't
+        all slip past the check before any failure is recorded. Returns 0 if the attempt may go
+        ahead, otherwise the number of seconds to wait (and nothing is reserved).
+        """
         now = time.monotonic()
         with self._lock:
             times = self._recent(key, now)
-            if not times:
-                self._failures.pop(key, None)
-                return 0
-            if len(times) < self.max_failures:
-                return 0
-            return max(1, int(self.window - (now - times[0])) + 1)
-
-    def record_failure(self, key: str) -> None:
-        now = time.monotonic()
-        with self._lock:
+            if len(times) >= self.max_failures:
+                return max(1, int(self.window - (now - times[0])) + 1)
             if key not in self._failures and len(self._failures) >= MAX_TRACKED_CLIENTS:
                 self._failures.pop(next(iter(self._failures)))  # drop the oldest-tracked client
-            times = self._recent(key, now)
             times.append(now)
             self._failures[key] = times
+            return 0
+
+    def release(self, key: str) -> None:
+        """The attempt succeeded: give back the slot acquire() reserved."""
+        with self._lock:
+            times = self._failures.get(key)
+            if times:
+                times.pop()
+                if not times:
+                    del self._failures[key]
 
     def reset(self) -> None:
         with self._lock:

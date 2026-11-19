@@ -31,6 +31,25 @@ def test_repeated_failed_logins_are_slowed_down(client, staff):
     assert int(r.headers["Retry-After"]) > 0
 
 
+def test_parallel_attempts_cannot_slip_past_the_limit():
+    # Each attempt is reserved before the slow password check, so a burst of 50 parallel
+    # attempts gets exactly 10 slots, not 50.
+    from concurrent.futures import ThreadPoolExecutor
+
+    from app.ratelimit import FailedLoginLimiter
+
+    limiter = FailedLoginLimiter(max_failures=10)
+    with ThreadPoolExecutor(max_workers=50) as pool:
+        results = list(pool.map(lambda _: limiter.acquire("1.2.3.4"), range(50)))
+    assert results.count(0) == 10
+
+
+def test_successful_logins_do_not_use_up_the_limit(client, staff):
+    for _ in range(15):
+        r = client.post("/api/auth/login", data={"username": "staff@test.dev", "password": "pass-1234"})
+        assert r.status_code == 200
+
+
 def test_unknown_email_gets_the_same_answer(client):
     r = client.post("/api/auth/login", data={"username": "nobody@test.dev", "password": "pass-1234"})
     assert r.status_code == 401

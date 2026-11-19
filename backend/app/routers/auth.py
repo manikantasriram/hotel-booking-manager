@@ -25,7 +25,7 @@ def login(request: Request, db: DB, form: Annotated[OAuth2PasswordRequestForm, D
     """Exchange email + password for a token. (The form field is called `username` by the
     OAuth2 standard; we put the email in it.)"""
     client = request.client.host if request.client else "unknown"
-    wait = login_limiter.retry_after(client)
+    wait = login_limiter.acquire(client)  # counts as a failure unless released below
     if wait:
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
@@ -38,8 +38,8 @@ def login(request: Request, db: DB, form: Annotated[OAuth2PasswordRequestForm, D
     # Same message (and about the same time) whether the email or the password is wrong,
     # so attackers can't tell which.
     if not verify_password_or_dummy(form.password, hashed) or user is None:
-        login_limiter.record_failure(client)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Incorrect email or password")
+    login_limiter.release(client)
     return Token(access_token=create_access_token(user.id, user.role.value))
 
 
