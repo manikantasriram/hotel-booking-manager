@@ -1,15 +1,30 @@
+@import "@fontsource-variable/inter";
 @import "tailwindcss";
 
-/* Design tokens: one place for the brand colours, used as Tailwind classes (bg-brand, text-ink...) */
+/* Design tokens: one place for the colours, used as Tailwind classes (bg-brand, text-ink...).
+   Every text colour here is at least 4.5:1 on white and on the canvas. */
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
   --color-brand: #2f5bff;
   --color-brand-dark: #2147d9;
   --color-brand-soft: #eef2ff;
   --color-ink: #0e1a33;
   --color-mute: #55627d;
   --color-line: #e2e8f0;
+  --color-line-strong: #cbd5e1;
   --color-canvas: #f6f8fb;
+  --color-hover: #f1f4f9;
+
+  /* status colours: text on its soft background */
+  --color-ok: #047857;
+  --color-ok-soft: #ecfdf5;
+  --color-bad: #b91c1c;
+  --color-bad-soft: #fef2f2;
+  --color-bad-line: #fecaca;
+  --color-warn: #b45309;
+  --color-warn-soft: #fffbeb;
+  --color-star: #d97706;
 }
 
 html {
@@ -20,8 +35,38 @@ body {
   @apply bg-canvas text-ink antialiased;
 }
 
+/* Figures line up in tables and stat cards. */
+table,
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: var(--color-brand-soft);
+  color: var(--color-ink);
+}
+
+input,
+textarea {
+  caret-color: var(--color-brand);
+}
+
 /* Visible keyboard focus everywhere */
 :focus-visible {
   outline: 2px solid var(--color-brand);
   outline-offset: 2px;
+}
+
+/* People who ask for less motion get instant colour changes and a slow, steady spinner
+   instead of a fast one, so "loading" is still visible. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-spin {
+    animation-duration: 2.5s;
+  }
 }

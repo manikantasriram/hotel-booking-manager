@@ -26,9 +26,13 @@ const columns = col.columns([
   col.accessor("total_rooms", { header: "Rooms" }),
   col.display({
     id: "open",
-    header: "",
+    header: () => <span className="sr-only">Actions</span>,
     cell: (info) => (
-      <Link to={`/hotels/${info.row.original.id}`} className="text-sm font-medium text-brand hover:underline">
+      <Link
+        to={`/hotels/${info.row.original.id}`}
+        aria-label={`Manage ${info.row.original.name}`}
+        className="text-sm font-medium text-brand underline-offset-4 hover:underline"
+      >
         Manage
       </Link>
     ),
@@ -57,7 +61,8 @@ export function HotelsPage() {
           columns={columns}
           searchPlaceholder="Search hotels or cities…"
           initialSorting={[{ id: "name", desc: false }]}
-          emptyMessage="No hotels yet."
+          emptyMessage={isAdmin ? "No hotels yet. Add the first one." : "No hotels yet."}
+          label="Hotels"
         />
       )}
 

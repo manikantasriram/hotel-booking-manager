@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { z } from "zod";
 import type { HotelInput } from "../lib/types";
-import { Button, ErrorNote, Field, Input, Select } from "./ui";
+import { Button, ErrorNote, Field, Input, Select, Textarea } from "./ui";
 
 // Zod describes what valid input looks like. The same rules exist on the server; checking here
 // too means the user sees mistakes instantly instead of after a round trip.
@@ -80,16 +80,9 @@ export function HotelForm({
           <Input id={id} aria-describedby={d} aria-invalid={!!errors.address} value={values.address} onChange={set("address")} />
         )}
       </Field>
-      <Field label="Description" error={errors.description} hint="Optional">
+      <Field label="Description" optional error={errors.description}>
         {(id, d) => (
-          <textarea
-            id={id}
-            aria-describedby={d}
-            rows={3}
-            value={values.description}
-            onChange={set("description")}
-            className="w-full rounded-lg border border-line px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-          />
+          <Textarea id={id} aria-describedby={d} rows={3} maxLength={2000} value={values.description} onChange={set("description")} />
         )}
       </Field>
       <ErrorNote error={error} />

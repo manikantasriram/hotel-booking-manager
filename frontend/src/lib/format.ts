@@ -9,12 +9,22 @@ export function formatDate(iso: string): string {
   return dateFmt.format(new Date(y, m - 1, d));
 }
 
+const toIso = (d: Date) => {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
 /** Today (or today + n days) as "YYYY-MM-DD" in the user's own time zone. */
 export function isoDate(offsetDays = 0): string {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return toIso(d);
+}
+
+/** "2026-11-15" + 1 -> "2026-11-16", worked out in local time so no time zone can shift it. */
+export function addDays(iso: string, days: number): string {
+  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+  return toIso(new Date(y, m - 1, d + days));
 }
 
 export function nightsBetween(checkIn: string, checkOut: string): number {

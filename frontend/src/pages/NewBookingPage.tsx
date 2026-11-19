@@ -1,9 +1,11 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 import { z } from "zod";
 import { Button, Card, ErrorNote, Field, Input, PageHeader, Select, Spinner } from "../components/ui";
-import { isoDate, money, nightsBetween } from "../lib/format";
+import { addDays, isoDate, money, nightsBetween } from "../lib/format";
 import { useAvailability, useCreateBooking, useHotel, useHotels } from "../lib/queries";
+
+const MAX_NIGHTS = 60; // same limit as the API (backend/app/services.py)
 
 const bookingSchema = z
   .object({
@@ -15,7 +17,12 @@ const bookingSchema = z
     check_out: z.iso.date("Choose a check-out date"),
     guests: z.number().int().min(1).max(12),
   })
-  .refine((v) => v.check_out > v.check_in, { path: ["check_out"], message: "Check-out must be after check-in" });
+  .refine((v) => v.check_in >= isoDate(), { path: ["check_in"], message: "Check-in can't be in the past" })
+  .refine((v) => v.check_out > v.check_in, { path: ["check_out"], message: "Check-out must be after check-in" })
+  .refine((v) => nightsBetween(v.check_in, v.check_out) <= MAX_NIGHTS, {
+    path: ["check_out"],
+    message: `A booking can be at most ${MAX_NIGHTS} nights`,
+  });
 
 type FieldErrors = Partial<Record<string, string>>;
 
@@ -55,12 +62,8 @@ export function NewBookingPage() {
   const availability = useAvailability(roomType?.id, form.check_in, form.check_out);
   const soldOut = availability.data ? availability.data.available === 0 : false;
 
-  const minCheckOut = useMemo(() => {
-    if (!form.check_in) return undefined;
-    const d = new Date(`${form.check_in}T00:00:00`);
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().slice(0, 10);
-  }, [form.check_in]);
+  // The day after check-in. (Worked out in local time: toISOString() would shift it a day east of UTC.)
+  const minCheckOut = form.check_in ? addDays(form.check_in, 1) : undefined;
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -185,7 +188,7 @@ export function NewBookingPage() {
 
           <Card className="h-fit space-y-4 p-6 lg:sticky lg:top-10">
             <h2 className="font-semibold">Summary</h2>
-            <dl className="space-y-2 text-sm">
+            <dl className="tabular space-y-2 text-sm">
               <div className="flex justify-between">
                 <dt className="text-mute">Nights</dt>
                 <dd>{nights > 0 ? nights : "–"}</dd>
@@ -204,11 +207,13 @@ export function NewBookingPage() {
                 <span className="text-mute">Choose a room and dates to check availability.</span>
               ) : availability.isFetching ? (
                 <span className="text-mute">Checking availability…</span>
+              ) : availability.error ? (
+                <span className="font-medium text-bad">{availability.error.message}</span>
               ) : availability.data ? (
                 soldOut ? (
-                  <span className="font-medium text-red-600">Sold out for these dates.</span>
+                  <span className="font-medium text-bad">Sold out for these dates.</span>
                 ) : (
-                  <span className="font-medium text-emerald-700">
+                  <span className="font-medium text-ok">
                     {availability.data.available} of {availability.data.total_rooms} rooms free
                   </span>
                 )

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router";
 import { useAuth } from "../auth/useAuth";
+import { APP_NAME } from "../components/classes";
 import { Button, ErrorNote, Field, Input } from "../components/ui";
 
 // Public demo accounts, also listed in the README so recruiters can try the app.
@@ -35,7 +36,8 @@ export function LoginPage() {
   }
 
   return (
-    <div className="grid min-h-dvh place-items-center px-4 py-10">
+    <main className="grid min-h-dvh place-items-center px-4 py-10">
+      <title>{`Sign in · ${APP_NAME}`}</title>
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <span className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-brand text-lg font-bold text-white" aria-hidden="true">
@@ -48,7 +50,15 @@ export function LoginPage() {
         <form onSubmit={submit} className="space-y-4 rounded-xl border border-line bg-white p-6" noValidate>
           <Field label="Email">
             {(id) => (
-              <Input id={id} type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Input
+                id={id}
+                type="email"
+                autoComplete="username"
+                required
+                aria-invalid={Boolean(error)}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             )}
           </Field>
           <Field label="Password">
@@ -58,6 +68,7 @@ export function LoginPage() {
                 type="password"
                 autoComplete="current-password"
                 required
+                aria-invalid={Boolean(error)}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -80,7 +91,7 @@ export function LoginPage() {
                   setEmail(d.email);
                   setPassword(d.password);
                 }}
-                className="rounded-lg border border-line bg-white px-3 py-2 text-left text-sm hover:border-brand"
+                className="rounded-lg border border-line-strong bg-white px-3 py-2 text-left text-sm transition-colors hover:border-brand"
               >
                 <span className="block font-medium">{d.label}</span>
                 <span className="block text-xs text-mute">{d.note}</span>
@@ -90,6 +101,6 @@ export function LoginPage() {
           <p className="mt-3 text-xs text-mute">Fills in the form; then press Sign in.</p>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

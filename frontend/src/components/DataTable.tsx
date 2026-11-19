@@ -7,7 +7,7 @@
 import { useTable, type ColumnDef, type RowData, type SortingState } from "@tanstack/react-table";
 import { useState, type ReactNode } from "react";
 import { tableFeatureSet, type Features } from "./tableFeatures";
-import { Input } from "./ui";
+import { Icon, Input } from "./ui";
 
 interface Props<T extends RowData> {
   data: T[];
@@ -17,6 +17,8 @@ interface Props<T extends RowData> {
   initialSorting?: SortingState;
   emptyMessage?: string;
   toolbar?: ReactNode;
+  /** Names the table for screen readers, e.g. "Bookings". */
+  label?: string;
 }
 
 export function DataTable<T extends RowData>({
@@ -26,6 +28,7 @@ export function DataTable<T extends RowData>({
   initialSorting = [],
   emptyMessage = "Nothing here yet.",
   toolbar,
+  label = "Table",
 }: Props<T>) {
   const [sorting, setSorting] = useState<SortingState>(initialSorting);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -59,9 +62,11 @@ export function DataTable<T extends RowData>({
         </span>
       </div>
 
-      <div className="overflow-x-auto">
+      {/* Focusable so keyboard users can scroll the table sideways on small screens. */}
+      {/* relative: keeps screen-reader-only header text inside the scroll box, not off the page */}
+      <div className="relative overflow-x-auto" tabIndex={0} role="region" aria-label={label}>
         <table className="w-full min-w-[760px] text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-mute">
+          <thead className="bg-canvas text-xs uppercase tracking-wide text-mute">
             {table.getHeaderGroups().map((group) => (
               <tr key={group.id}>
                 {group.headers.map((header) => {
@@ -78,12 +83,13 @@ export function DataTable<T extends RowData>({
                         <button
                           type="button"
                           onClick={header.column.getToggleSortingHandler()}
-                          className="inline-flex items-center gap-1 uppercase hover:text-ink"
+                          className="-mx-1 inline-flex h-7 items-center gap-1 rounded px-1 uppercase tracking-wide hover:text-ink"
                         >
                           <table.FlexRender header={header} />
-                          <span aria-hidden="true" className="w-3">
-                            {sorted === "asc" ? "▲" : sorted === "desc" ? "▼" : ""}
-                          </span>
+                          <Icon
+                            name={sorted === "asc" ? "up" : sorted === "desc" ? "down" : "sort"}
+                            className={sorted ? "h-3.5 w-3.5 text-ink" : "h-3.5 w-3.5 opacity-50"}
+                          />
                         </button>
                       ) : (
                         <table.FlexRender header={header} />
@@ -96,7 +102,7 @@ export function DataTable<T extends RowData>({
           </thead>
           <tbody className="divide-y divide-line">
             {rows.map((row) => (
-              <tr key={row.id} className="hover:bg-slate-50">
+              <tr key={row.id} className="hover:bg-canvas">
                 {row.getAllCells().map((cell) => (
                   <td key={cell.id} className="px-4 py-3 align-middle">
                     <table.FlexRender cell={cell} />

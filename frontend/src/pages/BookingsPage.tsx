@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { DataTable } from "../components/DataTable";
 import type { Features } from "../components/tableFeatures";
+import { buttonClass } from "../components/classes";
 import { Badge, Button, ErrorNote, PageHeader, Select, Spinner } from "../components/ui";
 import { formatDate, money } from "../lib/format";
 import { useBookings, useCancelBooking, useHotels, type BookingFilters } from "../lib/queries";
@@ -49,16 +50,19 @@ export function BookingsPage() {
     }),
     col.accessor("status", {
       header: "Status",
-      cell: (info) => <Badge tone={info.getValue() === "confirmed" ? "green" : "red"}>{info.getValue()}</Badge>,
+      cell: (info) =>
+        info.getValue() === "confirmed" ? <Badge tone="green">Confirmed</Badge> : <Badge tone="red">Cancelled</Badge>,
     }),
     col.display({
       id: "actions",
-      header: "",
+      header: () => <span className="sr-only">Actions</span>,
       cell: ({ row }) =>
         row.original.status === "confirmed" ? (
           <Button
             size="sm"
             variant="ghost"
+            aria-label={`Cancel booking for ${row.original.guest_name}`}
+            disabled={cancel.isPending && cancel.variables === row.original.id}
             onClick={() => confirm(`Cancel ${row.original.guest_name}'s booking?`) && cancel.mutate(row.original.id)}
           >
             Cancel
@@ -101,14 +105,16 @@ export function BookingsPage() {
         title="Bookings"
         subtitle="Sort by any column, search by guest, or filter by hotel and status."
         actions={
-          <Link to="/bookings/new" className="inline-flex h-10 items-center rounded-lg bg-brand px-4 text-sm font-medium text-white hover:bg-brand-dark">
+          <Link to="/bookings/new" className={buttonClass()}>
             New booking
           </Link>
         }
       />
-      <div className="mb-4">
-        <ErrorNote error={bookings.error ?? cancel.error} />
-      </div>
+      {(bookings.error || cancel.error) && (
+        <div className="mb-4">
+          <ErrorNote error={bookings.error ?? cancel.error} />
+        </div>
+      )}
       {bookings.isPending ? (
         <Spinner label="Loading bookings" />
       ) : (
@@ -119,6 +125,7 @@ export function BookingsPage() {
           searchPlaceholder="Search guests, hotels…"
           initialSorting={[{ id: "check_in", desc: false }]}
           emptyMessage="No bookings match these filters."
+          label="Bookings"
         />
       )}
     </>

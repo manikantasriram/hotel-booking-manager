@@ -1,6 +1,11 @@
-import { formatDate, money, nightsBetween, percent } from "./format";
+import { addDays, formatDate, money, nightsBetween, percent } from "./format";
 
 describe("format helpers", () => {
+  it("adds days to an ISO date across month and year ends", () => {
+    expect(addDays("2026-11-15", 1)).toBe("2026-11-16");
+    expect(addDays("2026-12-31", 1)).toBe("2027-01-01");
+  });
+
   it("formats rupees the Indian way", () => {
     expect(money(4890115)).toBe("₹48,90,115");
   });

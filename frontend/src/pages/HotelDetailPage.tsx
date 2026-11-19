@@ -2,7 +2,21 @@ import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useAuth } from "../auth/useAuth";
 import { HotelForm } from "../components/HotelForm";
-import { Badge, Button, Card, ErrorNote, Field, Input, Modal, PageHeader, Spinner, Stars } from "../components/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  Checkbox,
+  EmptyState,
+  ErrorNote,
+  Field,
+  Icon,
+  Input,
+  Modal,
+  PageHeader,
+  Spinner,
+  Stars,
+} from "../components/ui";
 import { money } from "../lib/format";
 import {
   useCreateRatePlan,
@@ -44,8 +58,9 @@ export function HotelDetailPage() {
 
   return (
     <>
-      <Link to="/hotels" className="text-sm font-medium text-mute hover:text-ink">
-        ← All hotels
+      <Link to="/hotels" className="-ml-1 inline-flex h-8 items-center gap-1 rounded-lg px-1 text-sm font-medium text-mute hover:text-ink">
+        <Icon name="back" />
+        All hotels
       </Link>
       <div className="mt-3">
         <PageHeader
@@ -76,8 +91,8 @@ export function HotelDetailPage() {
 
       <div className="mb-6 flex flex-wrap items-center gap-3 text-sm text-mute">
         <Stars count={h.stars} />
-        <span>
-          {h.room_type_count} room types · {h.total_rooms} rooms
+        <span className="tabular">
+          {h.room_type_count} room {h.room_type_count === 1 ? "type" : "types"} · {h.total_rooms} rooms
         </span>
       </div>
       {h.description && <p className="mb-6 max-w-2xl text-sm text-mute">{h.description}</p>}
@@ -92,7 +107,13 @@ export function HotelDetailPage() {
         )}
       </div>
 
-      {h.room_types.length === 0 && <p className="text-sm text-mute">No room types yet.</p>}
+      {h.room_types.length === 0 && (
+        <Card>
+          <EmptyState title="No room types yet">
+            {isAdmin ? "Add a room type, then give it one or more rates." : "An admin can add room types and rates."}
+          </EmptyState>
+        </Card>
+      )}
       <div className="space-y-4">
         {h.room_types.map((rt) => (
           <Card key={rt.id}>
@@ -105,15 +126,26 @@ export function HotelDetailPage() {
               </div>
               {isAdmin && (
                 <div className="flex gap-2">
-                  <Button size="sm" variant="secondary" onClick={() => setEditing({ kind: "ratePlan", roomTypeId: rt.id })}>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    aria-label={`Add rate to ${rt.name}`}
+                    onClick={() => setEditing({ kind: "ratePlan", roomTypeId: rt.id })}
+                  >
                     Add rate
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setEditing({ kind: "roomType", roomType: rt })}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label={`Edit ${rt.name}`}
+                    onClick={() => setEditing({ kind: "roomType", roomType: rt })}
+                  >
                     Edit
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
+                    aria-label={`Delete ${rt.name}`}
                     onClick={() => confirm(`Delete ${rt.name}?`) && deleteRoomType.mutate(rt.id)}
                   >
                     Delete
@@ -130,7 +162,7 @@ export function HotelDetailPage() {
                     <Badge tone={rp.refundable ? "slate" : "amber"}>{rp.refundable ? "Refundable" : "Non-refundable"}</Badge>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="font-semibold">
+                    <span className="tabular font-semibold">
                       {money(rp.price_per_night)} <span className="font-normal text-mute">/ night</span>
                     </span>
                     {isAdmin && (
@@ -138,11 +170,17 @@ export function HotelDetailPage() {
                         <Button
                           size="sm"
                           variant="ghost"
+                          aria-label={`Edit ${rp.name} for ${rt.name}`}
                           onClick={() => setEditing({ kind: "ratePlan", roomTypeId: rt.id, ratePlan: rp })}
                         >
                           Edit
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => confirm(`Delete ${rp.name}?`) && deleteRatePlan.mutate(rp.id)}>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          aria-label={`Delete ${rp.name} for ${rt.name}`}
+                          onClick={() => confirm(`Delete ${rp.name}?`) && deleteRatePlan.mutate(rp.id)}
+                        >
                           Delete
                         </Button>
                       </>
@@ -261,18 +299,19 @@ function RatePlanForm({ roomTypeId, ratePlan, onDone }: { roomTypeId: number; ra
             onChange={(e) => setValues({ ...values, price_per_night: Number(e.target.value) })} />
         )}
       </Field>
-      <div className="flex flex-wrap gap-6 text-sm">
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={values.breakfast_included}
-            onChange={(e) => setValues({ ...values, breakfast_included: e.target.checked })} className="h-4 w-4 accent-brand" />
-          Breakfast included
-        </label>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={values.refundable}
-            onChange={(e) => setValues({ ...values, refundable: e.target.checked })} className="h-4 w-4 accent-brand" />
-          Refundable
-        </label>
-      </div>
+      <fieldset className="flex flex-wrap gap-6">
+        <legend className="sr-only">Rate options</legend>
+        <Checkbox
+          label="Breakfast included"
+          checked={values.breakfast_included}
+          onChange={(e) => setValues({ ...values, breakfast_included: e.target.checked })}
+        />
+        <Checkbox
+          label="Refundable"
+          checked={values.refundable}
+          onChange={(e) => setValues({ ...values, refundable: e.target.checked })}
+        />
+      </fieldset>
       <ErrorNote error={mutation.error} />
       <div className="flex justify-end">
         <Button type="submit" disabled={mutation.isPending}>

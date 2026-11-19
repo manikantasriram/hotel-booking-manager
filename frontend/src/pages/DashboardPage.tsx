@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { useAuth } from "../auth/useAuth";
-import { Badge, Card, ErrorNote, PageHeader, Spinner } from "../components/ui";
+import { Badge, Card, EmptyState, ErrorNote, PageHeader, Spinner } from "../components/ui";
 import { formatDate, isoDate, money, percent } from "../lib/format";
 import { useBookings, useStats } from "../lib/queries";
 
@@ -8,7 +8,7 @@ function Stat({ label, value, note }: { label: string; value: string; note?: str
   return (
     <Card className="p-5">
       <p className="text-sm text-mute">{label}</p>
-      <p className="mt-2 text-2xl font-semibold tracking-tight">{value}</p>
+      <p className="tabular mt-2 text-2xl font-semibold tracking-tight">{value}</p>
       {note && <p className="mt-1 text-xs text-mute">{note}</p>}
     </Card>
   );
@@ -43,16 +43,27 @@ export function DashboardPage() {
       <Card className="mt-8">
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
           <h2 className="font-semibold">Next arrivals</h2>
-          <Link to="/bookings" className="text-sm font-medium text-brand hover:underline">
+          <Link
+            to="/bookings"
+            className="-mr-2 inline-flex h-8 items-center rounded-lg px-2 text-sm font-medium text-brand underline-offset-4 hover:underline"
+          >
             All bookings
           </Link>
         </div>
         {bookings.isPending ? (
           <div className="px-5">
-            <Spinner />
+            <Spinner label="Loading arrivals" />
+          </div>
+        ) : bookings.error ? (
+          <div className="p-5">
+            <ErrorNote error={bookings.error} />
           </div>
         ) : arrivals.length === 0 ? (
-          <p className="px-5 py-8 text-sm text-mute">No upcoming arrivals.</p>
+          <EmptyState title="No upcoming arrivals">
+            <Link to="/bookings/new" className="font-medium text-brand underline-offset-4 hover:underline">
+              Make a booking
+            </Link>
+          </EmptyState>
         ) : (
           <ul className="divide-y divide-line">
             {arrivals.map((b) => (
@@ -65,7 +76,7 @@ export function DashboardPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   {b.check_in === today && <Badge tone="blue">Today</Badge>}
-                  <span className="text-mute">
+                  <span className="tabular text-mute">
                     {formatDate(b.check_in)} · {b.nights} night{b.nights === 1 ? "" : "s"}
                   </span>
                 </div>
